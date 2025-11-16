@@ -1,5 +1,7 @@
 package smarttime.model;
 
-public class TaskStatus {
-
-}
+public enum TaskStatus {
+    PLANNED,
+    IN_PROGRESS,
+    COMPLETED
+}	
