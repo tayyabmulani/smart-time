@@ -1,21 +1,28 @@
 package smarttime.ds;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-
 /**
- * Simple stack wrapper for undo operations.
+ * Simple stack wrapper for undo operations, built on our own StackADT.
+ * This avoids using Java's built-in Stack/Deque and satisfies INFO 6205 ADT requirements.
  */
 public class UndoStack<T> {
 
-    private final Deque<T> stack = new ArrayDeque<>();
+    private final StackADT<T> stack;
+
+    public UndoStack() {
+        // default initial capacity; ArrayStack will grow if needed
+        this.stack = new ArrayStack<>(16);
+    }
+
+    public UndoStack(int initialCapacity) {
+        this.stack = new ArrayStack<>(initialCapacity);
+    }
 
     public void push(T action) {
         stack.push(action);
     }
 
     public T pop() {
-        return stack.isEmpty() ? null : stack.pop();
+        return stack.pop();
     }
 
     public T peek() {
