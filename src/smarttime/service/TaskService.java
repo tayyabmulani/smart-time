@@ -12,9 +12,7 @@ import smarttime.model.Task;
 import smarttime.model.TaskStatus;
 import smarttime.model.UndoAction;
 import smarttime.model.UndoAction.ActionType;
-
-import java.util.Collections;
-import java.util.Comparator;
+import smarttime.ds.TaskSorter;  
 
 /**
  * Glue between UI and DS.
@@ -170,23 +168,10 @@ public class TaskService {
      *  3) title (alphabetical)
      */
     public List<Task> getAllTasksSorted() {
-        List<Task> copy = new ArrayList<>(allTasks); // or whatever your internal list is called
+        List<Task> copy = new ArrayList<>(allTasks);
 
-        Collections.sort(copy, new Comparator<Task>() {
-            @Override
-            public int compare(Task a, Task b) {
-                // 1. due date
-                int cmp = a.getDueDate().compareTo(b.getDueDate());
-                if (cmp != 0) return cmp;
-
-                // 2. difficulty
-                cmp = Integer.compare(a.getDifficulty(), b.getDifficulty());
-                if (cmp != 0) return cmp;
-
-                // 3. title
-                return a.getTitle().compareToIgnoreCase(b.getTitle());
-            }
-        });
+        // Use your custom QuickSort implementation
+        TaskSorter.quickSortTasks(copy);
 
         return copy;
     }
