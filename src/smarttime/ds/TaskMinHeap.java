@@ -4,11 +4,12 @@ import smarttime.model.Task;
 import java.time.LocalDate;
 
 /**
- * Custom Min-Heap implementation for Task scheduling.
- * Ordering Rules:
- *  1. Lower difficulty = higher priority
- *  2. Earlier due date = higher priority
- *  3. Lower task ID = tie breaker
+ * Array-based min-heap for Task, implementing our custom MinPriorityQueue.
+ *
+ * Priority rules:
+ *  1) Earlier due date = higher priority
+ *  2) If same due date: lower difficulty first
+ *  3) If same difficulty: smaller estimatedMinutes first
  */
 public class TaskMinHeap implements MinPriorityQueue<Task> {
 
@@ -32,9 +33,18 @@ public class TaskMinHeap implements MinPriorityQueue<Task> {
         size++;
     }
 
+    // Convenience method so TaskService can call heap.add(task)
+    public void add(Task task) {
+        insert(task);
+    }
+
     @Override
     public Task findMin() {
         return size == 0 ? null : heap[0];
+    }
+
+    public Task peekMin() {
+        return findMin();
     }
 
     @Override
@@ -43,9 +53,13 @@ public class TaskMinHeap implements MinPriorityQueue<Task> {
 
         Task min = heap[0];
         heap[0] = heap[size - 1];
+        heap[size - 1] = null;
         size--;
 
-        heapifyDown(0);
+        if (size > 0) {
+            heapifyDown(0);
+        }
+
         return min;
     }
 
@@ -59,72 +73,35 @@ public class TaskMinHeap implements MinPriorityQueue<Task> {
         return size;
     }
 
-    // ---------------------------
-    // Convenience wrappers used by TaskService
-    // ---------------------------
-
-    public Task peekMin() {
-        return findMin();
-    }
-
-    public void add(Task t) {
-        insert(t);
-    }
-
-    // ---------------------------
-    // Internal Helpers
-    // ---------------------------
+    // ---------- internal helpers ----------
 
     private void ensureCapacity() {
-        if (size >= heap.length) {
-            Task[] newArr = new Task[heap.length * 2];
-            System.arraycopy(heap, 0, newArr, 0, heap.length);
-            heap = newArr;
+        if (size == heap.length) {
+            Task[] newHeap = new Task[heap.length * 2];
+            System.arraycopy(heap, 0, newHeap, 0, heap.length);
+            heap = newHeap;
         }
     }
 
-    private int parent(int i) { return (i - 1) / 2; }
-    private int left(int i) { return (2 * i) + 1; }
-    private int right(int i) { return (2 * i) + 2; }
-
-    private void swap(int i, int j) {
-        Task temp = heap[i];
-        heap[i] = heap[j];
-        heap[j] = temp;
+    private int parent(int index) {
+        return (index - 1) / 2;
     }
 
-    /**
-     * Comparator for tasks:
-     * Lower difficulty = higher priority
-     * Earlier due date = higher priority
-     * Lower ID = tie breaker
-     */
-    private int compare(Task a, Task b) {
-        if (a.getDifficulty() != b.getDifficulty()) {
-            return a.getDifficulty() - b.getDifficulty(); // lower difficulty first
-        }
-
-        LocalDate da = a.getDueDate();
-        LocalDate db = b.getDueDate();
-
-        int dateCompare = da.compareTo(db);
-        if (dateCompare != 0) {
-            return dateCompare; // earlier date first
-        }
-
-        return a.getId() - b.getId(); // tie-breaker
+    private int leftChild(int index) {
+        return 2 * index + 1;
     }
 
-    // ---------------------------
-    // Heapify logic
-    // ---------------------------
+    private int rightChild(int index) {
+        return 2 * index + 2;
+    }
 
     private void heapifyUp(int index) {
-        while (index > 0) {
-            int p = parent(index);
-            if (compare(heap[index], heap[p]) < 0) {
-                swap(index, p);
-                index = p;
+        int current = index;
+        while (current > 0) {
+            int parentIndex = parent(current);
+            if (compare(heap[current], heap[parentIndex]) < 0) {
+                swap(current, parentIndex);
+                current = parentIndex;
             } else {
                 break;
             }
@@ -132,10 +109,11 @@ public class TaskMinHeap implements MinPriorityQueue<Task> {
     }
 
     private void heapifyDown(int index) {
+        int current = index;
         while (true) {
-            int left = left(index);
-            int right = right(index);
-            int smallest = index;
+            int left = leftChild(current);
+            int right = rightChild(current);
+            int smallest = current;
 
             if (left < size && compare(heap[left], heap[smallest]) < 0) {
                 smallest = left;
@@ -144,12 +122,41 @@ public class TaskMinHeap implements MinPriorityQueue<Task> {
                 smallest = right;
             }
 
-            if (smallest != index) {
-                swap(index, smallest);
-                index = smallest;
+            if (smallest != current) {
+                swap(current, smallest);
+                current = smallest;
             } else {
                 break;
             }
         }
+    }
+
+    private void swap(int i, int j) {
+        Task tmp = heap[i];
+        heap[i] = heap[j];
+        heap[j] = tmp;
+    }
+
+    /**
+     * Compare two tasks according to our priority rules.
+     * Returns negative if a has higher priority than b.
+     */
+    private int compare(Task a, Task b) {
+        if (a == null && b == null) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+
+        // 1) earlier due date first
+        LocalDate da = a.getDueDate();
+        LocalDate db = b.getDueDate();
+        int cmp = da.compareTo(db);
+        if (cmp != 0) return cmp;
+
+        // 2) lower difficulty first
+        cmp = Integer.compare(a.getDifficulty(), b.getDifficulty());
+        if (cmp != 0) return cmp;
+
+        // 3) smaller estimatedMinutes first
+        return Integer.compare(a.getEstimatedMinutes(), b.getEstimatedMinutes());
     }
 }
