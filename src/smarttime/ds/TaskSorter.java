@@ -1,9 +1,7 @@
 package smarttime.ds;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-
 import smarttime.model.Task;
 
 /**
@@ -22,14 +20,11 @@ public class TaskSorter {
      *   4. Then alphabetical by title (case-insensitive)
      */
     public static void quickSortTasks(List<Task> tasks) {
-        if (tasks == null || tasks.size() <= 1) {
-            return; // nothing to sort
-        }
+        if (tasks == null || tasks.size() <= 1) return;
+
         Comparator<Task> cmp = taskComparator();
         quickSort(tasks, 0, tasks.size() - 1, cmp);
     }
-
-    // ---------- Internal QuickSort implementation ----------
 
     private static Comparator<Task> taskComparator() {
         return Comparator
@@ -47,23 +42,26 @@ public class TaskSorter {
         }
     }
 
-    /**
-     * Lomuto partition scheme.
-     * Picks the last element as pivot, partitions the list so that:
-     * - elements <= pivot are on the left
-     * - elements > pivot are on the right
-     */
     private static <T> int partition(List<T> list, int low, int high, Comparator<T> cmp) {
         T pivot = list.get(high);
-        int i = low - 1; // index of smaller element
+        int i = low - 1;
 
         for (int j = low; j < high; j++) {
             if (cmp.compare(list.get(j), pivot) <= 0) {
                 i++;
-                Collections.swap(list, i, j);
+                swap(list, i, j);  // custom swap
             }
         }
-        Collections.swap(list, i + 1, high);
+
+        swap(list, i + 1, high);
         return i + 1;
+    }
+
+    private static <T> void swap(List<T> list, int i, int j) {
+        if (i == j) return;
+
+        T temp = list.get(i);
+        list.set(i, list.get(j));
+        list.set(j, temp);
     }
 }
