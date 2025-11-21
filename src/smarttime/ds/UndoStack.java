@@ -2,11 +2,10 @@ package smarttime.ds;
 
 /**
  * Simple stack wrapper for undo operations, built on our own StackADT.
- * This avoids using Java's built-in Stack/Deque and satisfies INFO 6205 ADT requirements.
  */
 public class UndoStack<T> {
 
-    private final StackADT<T> stack;
+    private final StackInterface<T> stack;
 
     public UndoStack() {
         // default initial capacity; ArrayStack will grow if needed

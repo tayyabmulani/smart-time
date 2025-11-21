@@ -12,7 +12,7 @@ import smarttime.model.Task;
  *  - hasCycle(): recursive DFS to detect cycles
  *  - canStart(): check if all prerequisites of a task are completed
  */
-public class TaskGraph implements GraphADT<Task> {
+public class TaskGraph implements GraphInterface<Task> {
 
     // from -> list of dependents
     private final Map<Task, List<Task>> adj = new HashMap<>();

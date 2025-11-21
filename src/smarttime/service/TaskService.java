@@ -1,5 +1,6 @@
 package smarttime.service;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -8,17 +9,15 @@ import java.util.stream.Collectors;
 import smarttime.ds.TaskGraph;
 import smarttime.ds.TaskMinHeap;
 import smarttime.ds.UndoStack;
+import smarttime.ds.TaskSorter;
 import smarttime.model.Task;
 import smarttime.model.TaskStatus;
 import smarttime.model.UndoAction;
 import smarttime.model.UndoAction.ActionType;
-import smarttime.ds.TaskSorter;  
 
 /**
  * Glue between UI and DS.
- *
- * All mutations to tasks should go through this class so that
- * we can record them on an UndoStack and support undo.
+ * All mutations must go through this class so undo works correctly.
  */
 public class TaskService {
 
@@ -31,148 +30,176 @@ public class TaskService {
         this.heap = heap;
         this.graph = graph;
     }
-
-    /**
-     * Add a new task to the system.
-     * This records an ADD_TASK undo action.
-     */
+    
+    // ADD TASK
     public void addTask(Task task) {
         allTasks.add(task);
-        heap.add(task);
+        heap.insert(task);
         graph.addTask(task);
 
-        // record this so we can undo the addition
-        undoStack.push(new UndoAction(ActionType.ADD_TASK, task, null));
+        undoStack.push(new UndoAction(ActionType.ADD_TASK, task));
     }
 
-    /**
-     * Mark a task as completed.
-     * This records an UPDATE_STATUS undo action.
-     */
+    // MARK COMPLETED
     public void markTaskCompleted(Task task) {
         if (task == null) return;
 
         TaskStatus previous = task.getStatus();
-        if (previous == TaskStatus.COMPLETED) {
-            // nothing to do
-            return;
-        }
+        if (previous == TaskStatus.COMPLETED) return;
 
         task.setStatus(TaskStatus.COMPLETED);
-
-        // later we can also update heap/graph if needed
         undoStack.push(new UndoAction(ActionType.UPDATE_STATUS, task, previous));
+
+        rebuildHeap();
     }
 
-    /**
-     * Undo the last action if possible.
-     */
+    // EDIT TASK
+    public void updateTask(Task task,
+                           String newTitle,
+                           String newCourse,
+                           LocalDate newDueDate,
+                           int newMinutes,
+                           int newDifficulty) {
+
+        if (task == null) return;
+
+        // snapshot before edit (for undo)
+        Task snapshot = new Task(
+                task.getId(),
+                task.getTitle(),
+                task.getCourse(),
+                task.getDueDate(),
+                task.getEstimatedMinutes(),
+                task.getDifficulty()
+        );
+        snapshot.setStatus(task.getStatus());
+
+        // apply new values
+        task.setTitle(newTitle);
+        task.setCourse(newCourse);
+        task.setDueDate(newDueDate);
+        task.setEstimatedMinutes(newMinutes);
+        task.setDifficulty(newDifficulty);
+
+        rebuildHeap();
+
+        undoStack.push(new UndoAction(ActionType.UPDATE_TASK_DETAILS, task, snapshot));
+    }
+
+    // DELETE TASK
+    public void deleteTask(Task task) {
+        if (task == null) return;
+
+        // Save for undo
+        undoStack.push(new UndoAction(ActionType.DELETE_TASK, task));
+
+        removeTaskInternal(task);
+        rebuildHeap();
+    }
+
+    // INTERNAL REMOVE
+    private void removeTaskInternal(Task task) {
+        allTasks.remove(task);
+        // when graph supports remove: graph.removeTask(task);
+    }
+    
+    // UNDO
     public void undoLastAction() {
-        if (undoStack.isEmpty()) {
-            return;
-        }
+        if (undoStack.isEmpty()) return;
 
         UndoAction action = undoStack.pop();
         Task task = action.getTask();
 
         switch (action.getType()) {
+
             case ADD_TASK:
-                // undo: remove the task we just added
                 removeTaskInternal(task);
+                rebuildHeap();
                 break;
 
             case UPDATE_STATUS:
-                // undo: restore previous status
-                TaskStatus prevStatus = action.getPreviousStatus();
-                if (prevStatus != null && task != null) {
-                    task.setStatus(prevStatus);
+                task.setStatus(action.getPreviousStatus());
+                rebuildHeap();
+                break;
+
+            case UPDATE_TASK_DETAILS:
+                Task snapshot = action.getSnapshot();
+                if (snapshot != null) {
+                    task.setTitle(snapshot.getTitle());
+                    task.setCourse(snapshot.getCourse());
+                    task.setDueDate(snapshot.getDueDate());
+                    task.setEstimatedMinutes(snapshot.getEstimatedMinutes());
+                    task.setDifficulty(snapshot.getDifficulty());
+                    task.setStatus(snapshot.getStatus());
                 }
+                rebuildHeap();
+                break;
+
+            case DELETE_TASK:
+                allTasks.add(task);
+                graph.addTask(task);
+                rebuildHeap();
                 break;
         }
     }
 
-    /**
-     * Internal helper to remove a task from all structures.
-     * NOTE: heap/graph removal can be refined once those APIs exist.
-     */
-    private void removeTaskInternal(Task task) {
-        if (task == null) return;
-
-        allTasks.remove(task);
-        // TODO: when Aditya/Bharat add support for removal,
-        // also remove from heap and graph.
-        // e.g., heap.remove(task); graph.removeTask(task);
-    }
-
-    public List<Task> getAllTasks() {
-        return new ArrayList<>(allTasks);
-    }
-
-    public Task getNextRecommendedTask() {
-        // Use the heap, but skip completed tasks.
-        // We temporarily pop items and put them back to keep the heap consistent.
-        List<Task> buffer = new ArrayList<>();
-
-        Task candidate = heap.extractMin();
-        while (candidate != null && candidate.getStatus() == TaskStatus.COMPLETED) {
-            buffer.add(candidate);
-            candidate = heap.extractMin();
-        }
-
-        // Put everything back into the heap
-        for (Task t : buffer) {
+    // REBUILD HEAP
+    private void rebuildHeap() {
+        heap.clear();
+        for (Task t : allTasks) {
             heap.insert(t);
         }
-        if (candidate != null) {
-            heap.insert(candidate);
-        }
-
-        return candidate;
+    }
+    // ACCESSORS
+    public List<Task> getAllTasks() {
+        return new ArrayList<>(allTasks);
     }
 
     public boolean canUndo() {
         return !undoStack.isEmpty();
     }
-    
-    /**
-     * Add a prerequisite relationship: prerequisite must be completed
-     * before dependent can start.
-     */
+
+    public Task getNextRecommendedTask() {
+        List<Task> buffer = new ArrayList<>();
+        Task candidate = heap.extractMin();
+
+        while (candidate != null &&
+              (candidate.getStatus() == TaskStatus.COMPLETED ||
+                !allTasks.contains(candidate))) {
+            buffer.add(candidate);
+            candidate = heap.extractMin();
+        }
+
+        for (Task t : buffer) heap.insert(t);
+        if (candidate != null) heap.insert(candidate);
+
+        return candidate;
+    }
+
+    // GRAPH FUNCTIONS
     public void addDependency(Task prerequisite, Task dependent) {
         graph.addDependency(prerequisite, dependent);
     }
 
-    /**
-     * Returns true if the task is allowed to start:
-     * either it has no prerequisites or all of them are completed.
-     */
     public boolean isTaskUnlocked(Task task) {
         Set<Task> completed = allTasks.stream()
                 .filter(t -> t.getStatus() == TaskStatus.COMPLETED)
                 .collect(Collectors.toSet());
-
         return graph.canStart(task, completed);
     }
-    
-    /**
-     * Get direct prerequisites for a given task from the graph.
-     */
+
     public List<Task> getPrerequisites(Task task) {
         return graph.getPrerequisites(task);
     }
-    
-    /**
-     * Returns tasks sorted by:
-     *  1) due date (earliest first)
-     *  2) difficulty (easier first)
-     *  3) title (alphabetical)
-     */
+
+    // SORTING WITH CUSTOM QUICKSORT
     public List<Task> getAllTasksSorted() {
         List<Task> copy = new ArrayList<>(allTasks);
-
-        // Use your custom QuickSort implementation
         TaskSorter.quickSortTasks(copy);
-
         return copy;
+    }
+
+    public int getNextId() {
+        return allTasks.size() + 1;
     }
 }
