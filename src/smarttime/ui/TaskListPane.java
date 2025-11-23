@@ -2,6 +2,7 @@ package smarttime.ui;
 
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -17,9 +18,13 @@ public class TaskListPane extends VBox {
     private final ListView<Task> taskList;
     private final Button addTaskButton;
     private final Button markCompletedButton;
+    private final Button editTaskButton;
+    private final Button deleteTaskButton;
 
-    private Runnable onAddTaskClicked;   // set by MainLayout
-    private Runnable onTasksChanged;     // set by MainLayout
+    private Runnable onAddTaskClicked;
+    private Runnable onEditTaskClicked;
+    private Runnable onDeleteTaskClicked;
+    private Runnable onTasksChanged;
 
     public TaskListPane(TaskService taskService) {
         this.taskService = taskService;
@@ -27,16 +32,31 @@ public class TaskListPane extends VBox {
         setSpacing(8);
         setPadding(new Insets(8));
         setPrefWidth(450);
-        setMaxWidth(600);  
+        setMaxWidth(600);
         setStyle("-fx-background-color: #ffffff;");
 
         Label header = new Label("Tasks");
         header.setStyle("-fx-font-weight: bold;");
+        // SORT DROPDOWN
+        ComboBox<String> sortBox = new ComboBox<>();
+        sortBox.getItems().addAll("Default", "Due date", "Difficulty");
+        sortBox.getSelectionModel().selectFirst();
+
+        sortBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if ("Due date".equals(newVal)) {
+                currentSortMode = SortMode.DUE_DATE;
+            } else if ("Difficulty".equals(newVal)) {
+                currentSortMode = SortMode.DIFFICULTY;
+            } else {
+                currentSortMode = SortMode.DEFAULT;
+            }
+            refresh();
+        });
 
         taskList = new ListView<>();
         VBox.setVgrow(taskList, Priority.ALWAYS);
 
-        // Cell factory to show completed tasks differently
+        // Cell formatting
         taskList.setCellFactory(listView -> new ListCell<>() {
             @Override
             protected void updateItem(Task item, boolean empty) {
@@ -45,81 +65,115 @@ public class TaskListPane extends VBox {
                     setText(null);
                     setStyle("");
                 } else {
-                    String base = item.toString();
                     boolean isCompleted = item.getStatus() == TaskStatus.COMPLETED;
                     boolean isUnlocked = taskService.isTaskUnlocked(item) || isCompleted;
 
                     if (!isUnlocked) {
-                        // Locked because prerequisites not done
-                        setText("🔒 " + base);
+                        setText("🔒 " + item);
                         setStyle("-fx-text-fill: #999999; -fx-font-style: italic;");
                     } else if (isCompleted) {
-                        setText("✓ " + base);
+                        setText("✓ " + item);
                         setStyle("-fx-text-fill: #777777;");
                     } else {
-                        setText(base);
-                        setStyle(""); // default
+                        setText(item.toString());
+                        setStyle("");
                     }
                 }
             }
         });
 
+        // Buttons: Add Button
         addTaskButton = new Button("+ Add Task");
         addTaskButton.setMaxWidth(Double.MAX_VALUE);
         addTaskButton.setOnAction(e -> {
-            if (onAddTaskClicked != null) {
-                onAddTaskClicked.run();
-            }
+            if (onAddTaskClicked != null) onAddTaskClicked.run();
         });
 
         markCompletedButton = new Button("Mark Completed");
         markCompletedButton.setMaxWidth(Double.MAX_VALUE);
         markCompletedButton.setOnAction(e -> handleMarkCompleted());
 
-        getChildren().addAll(header, taskList, addTaskButton, markCompletedButton);
+        // Buttons: Edit button
+        editTaskButton = new Button("Edit Task");
+        editTaskButton.setMaxWidth(Double.MAX_VALUE);
+        editTaskButton.setOnAction(e -> {
+            if (onEditTaskClicked != null) onEditTaskClicked.run();
+        });
 
-        // Load initial tasks
+        // Buttons: Delete button
+        deleteTaskButton = new Button("Delete Task");
+        deleteTaskButton.setMaxWidth(Double.MAX_VALUE);
+        deleteTaskButton.setStyle("-fx-background-color: #ffdddd;");
+        deleteTaskButton.setOnAction(e -> {
+            if (onDeleteTaskClicked != null) onDeleteTaskClicked.run();
+        });
+
+        getChildren().addAll(
+                header,
+                sortBox,
+                taskList,
+                addTaskButton,
+                markCompletedButton,
+                editTaskButton,
+                deleteTaskButton
+        );
+
         refresh();
     }
 
-    /**
-     * Reload tasks from TaskService into the ListView.
-     */
     public void refresh() {
-        taskList.getItems().setAll(taskService.getAllTasksSorted());
+        switch (currentSortMode) {
+            case DUE_DATE:
+                taskList.getItems().setAll(taskService.getTasksSortedByDueDate());
+                break;
+            case DIFFICULTY:
+                taskList.getItems().setAll(taskService.getTasksSortedByDifficulty());
+                break;
+            case DEFAULT:
+            default:
+                taskList.getItems().setAll(taskService.getAllTasks());
+                break;
+        }
     }
 
     private void handleMarkCompleted() {
         Task selected = taskList.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            return; // nothing selected
-        }
+        if (selected == null) return;
 
-        // Do not allow completing locked tasks
-        if (!taskService.isTaskUnlocked(selected)) {
-            // (optional) you could add a dialog later; for now just ignore.
-            return;
-        }
+        if (!taskService.isTaskUnlocked(selected)) return;
 
         taskService.markTaskCompleted(selected);
 
-        // Refresh UI to show the new status
         refresh();
-
-        if (onTasksChanged != null) {
-            onTasksChanged.run();
-        }
+        if (onTasksChanged != null) onTasksChanged.run();
     }
 
+    // Getters for MainLayout
     public ListView<Task> getTaskListView() {
         return taskList;
     }
 
-    public void setOnAddTaskClicked(Runnable onAddTaskClicked) {
-        this.onAddTaskClicked = onAddTaskClicked;
+    public void setOnAddTaskClicked(Runnable r) {
+        this.onAddTaskClicked = r;
     }
 
-    public void setOnTasksChanged(Runnable onTasksChanged) {
-        this.onTasksChanged = onTasksChanged;
+    public void setOnEditTaskClicked(Runnable r) {
+        this.onEditTaskClicked = r;
     }
+
+    public void setOnDeleteTaskClicked(Runnable r) {
+        this.onDeleteTaskClicked = r;
+    }
+
+    public void setOnTasksChanged(Runnable r) {
+        this.onTasksChanged = r;
+    }
+    
+    private enum SortMode {
+        DEFAULT,
+        DUE_DATE,
+        DIFFICULTY
+    }
+
+    private SortMode currentSortMode = SortMode.DEFAULT;
 }

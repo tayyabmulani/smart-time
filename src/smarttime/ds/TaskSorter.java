@@ -1,35 +1,37 @@
 package smarttime.ds;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-
 import smarttime.model.Task;
 
 /**
- * TaskSorter
  * Custom QuickSort implementation for Tasks.
+ * Implements the Sorting ADT (TaskSorterInterface).
  */
-public class TaskSorter {
+public class TaskSorter implements TaskSorterInterface {
 
-    /**
-     * Sorts the given list of tasks in-place using QuickSort.
-     *
-     * Order:
-     *   1. Earlier due date first
-     *   2. If same due date -> lower difficulty first
-     *   3. If same difficulty -> smaller estimated minutes first
-     *   4. Then alphabetical by title (case-insensitive)
-     */
-    public static void quickSortTasks(List<Task> tasks) {
-        if (tasks == null || tasks.size() <= 1) {
-            return; // nothing to sort
-        }
-        Comparator<Task> cmp = taskComparator();
-        quickSort(tasks, 0, tasks.size() - 1, cmp);
+    @Override
+    public void sort(List<Task> tasks, Comparator<Task> comparator) {
+        if (tasks == null || tasks.size() <= 1) return;
+        quickSort(tasks, 0, tasks.size() - 1, comparator);
     }
 
-    // ---------- Internal QuickSort implementation ----------
+
+    public static void quickSortTasks(List<Task> tasks) {
+        new TaskSorter().sort(tasks, taskComparator());
+    }
+
+    public static void sortByDueDate(List<Task> tasks) {
+        Comparator<Task> cmp = Comparator.comparing(
+                Task::getDueDate, Comparator.nullsLast((d1, d2) -> d1.compareTo(d2))
+        );
+        new TaskSorter().sort(tasks, cmp);
+    }
+
+    public static void sortByDifficulty(List<Task> tasks) {
+        Comparator<Task> cmp = Comparator.comparingInt(Task::getDifficulty);
+        new TaskSorter().sort(tasks, cmp);
+    }
 
     private static Comparator<Task> taskComparator() {
         return Comparator
@@ -47,23 +49,25 @@ public class TaskSorter {
         }
     }
 
-    /**
-     * Lomuto partition scheme.
-     * Picks the last element as pivot, partitions the list so that:
-     * - elements <= pivot are on the left
-     * - elements > pivot are on the right
-     */
     private static <T> int partition(List<T> list, int low, int high, Comparator<T> cmp) {
         T pivot = list.get(high);
-        int i = low - 1; // index of smaller element
+        int i = low - 1;
 
         for (int j = low; j < high; j++) {
             if (cmp.compare(list.get(j), pivot) <= 0) {
                 i++;
-                Collections.swap(list, i, j);
+                swap(list, i, j);
             }
         }
-        Collections.swap(list, i + 1, high);
+
+        swap(list, i + 1, high);
         return i + 1;
+    }
+
+    private static <T> void swap(List<T> list, int i, int j) {
+        if (i == j) return;
+        T temp = list.get(i);
+        list.set(i, list.get(j));
+        list.set(j, temp);
     }
 }

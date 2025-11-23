@@ -11,7 +11,7 @@ import java.time.LocalDate;
  *  2) If same due date: lower difficulty first
  *  3) If same difficulty: smaller estimatedMinutes first
  */
-public class TaskMinHeap implements MinPriorityQueue<Task> {
+public class TaskMinHeap implements QueueInterface<Task> {
 
     private Task[] heap;
     private int size;
@@ -20,10 +20,6 @@ public class TaskMinHeap implements MinPriorityQueue<Task> {
         heap = new Task[capacity];
         size = 0;
     }
-
-    // ---------------------------
-    // Public ADT Methods
-    // ---------------------------
 
     @Override
     public void insert(Task task) {
@@ -72,8 +68,6 @@ public class TaskMinHeap implements MinPriorityQueue<Task> {
     public int size() {
         return size;
     }
-
-    // ---------- internal helpers ----------
 
     private void ensureCapacity() {
         if (size == heap.length) {
@@ -159,4 +153,13 @@ public class TaskMinHeap implements MinPriorityQueue<Task> {
         // 3) smaller estimatedMinutes first
         return Integer.compare(a.getEstimatedMinutes(), b.getEstimatedMinutes());
     }
+    
+    /** Clear the heap completely (used when rebuilding heap). */
+    public void clear() {
+        for (int i = 0; i < size; i++) {
+            heap[i] = null;
+        }
+        size = 0;
+    }
+
 }

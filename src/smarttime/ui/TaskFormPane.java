@@ -22,7 +22,7 @@ import smarttime.service.TaskService;
 public class TaskFormPane extends VBox {
 
     private final TaskService taskService;
-    private final Runnable onDone; // callback to run after save/cancel
+    private final Runnable onDone; 
 
     private final Label headerLabel;
     private final TextField titleField;
@@ -37,7 +37,6 @@ public class TaskFormPane extends VBox {
     private final Button saveButton;
     private final Button cancelButton;
 
-    // null => add mode, non-null => edit mode
     private Task editingTask;
 
     public TaskFormPane(TaskService taskService, Runnable onDone) {
@@ -120,10 +119,10 @@ public class TaskFormPane extends VBox {
         return new VBox(2, label, field);
     }
 
-    // ---------- PUBLIC API FOR MAINLAYOUT ----------
+    // Public APIs for Main Layout
 
     /** Prepare the form for adding a brand new task. */
-    public void startCreate() {
+    public void startAddMode() {
         editingTask = null;
         headerLabel.setText("Add New Task");
         saveButton.setText("Save Task");
@@ -133,9 +132,9 @@ public class TaskFormPane extends VBox {
     }
 
     /** Prepare the form for editing an existing task. */
-    public void startEdit(Task task) {
+    public void startEditMode(Task task) {
         if (task == null) {
-            startCreate();
+            startAddMode();
             return;
         }
 
@@ -154,7 +153,7 @@ public class TaskFormPane extends VBox {
 
         refreshPrerequisites();
 
-        // (optional) we could pre-select prerequisites here if you expose them via TaskService
+        // To pre-select prerequisites here via TaskService
         prereqListView.getSelectionModel().clearSelection();
     }
 
@@ -163,8 +162,6 @@ public class TaskFormPane extends VBox {
         List<Task> tasks = taskService.getAllTasksSorted();
         prereqListView.setItems(FXCollections.observableArrayList(tasks));
     }
-
-    // ---------- INTERNAL LOGIC ----------
 
     private void handleSave() {
         errorLabel.setText("");
@@ -204,7 +201,7 @@ public class TaskFormPane extends VBox {
         }
 
         if (editingTask == null) {
-            // -------- CREATE NEW TASK --------
+            // Create a new Task
             int id = taskService.getAllTasks().size() + 1; // simple ID
 
             Task task = new Task(id, title, course, dueDate, minutes, difficulty);
@@ -215,15 +212,7 @@ public class TaskFormPane extends VBox {
                 taskService.addDependency(prereq, task);
             }
         } else {
-            // -------- EDIT EXISTING TASK --------
-            editingTask.setTitle(title);
-            editingTask.setCourse(course);
-            editingTask.setDueDate(dueDate);
-            editingTask.setEstimatedMinutes(minutes);
-            editingTask.setDifficulty(difficulty);
-
-            // for now we keep existing prerequisites as-is
-            // (we can add a clear+re-add if you want to edit them too)
+        	taskService.updateTask(editingTask, title, course, dueDate, minutes, difficulty);
         }
 
         clearForm();
