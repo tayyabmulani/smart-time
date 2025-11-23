@@ -202,4 +202,19 @@ public class TaskService {
     public int getNextId() {
         return allTasks.size() + 1;
     }
+    
+    // SORT BY DUE DATE
+    public List<Task> getTasksSortedByDueDate() {
+        List<Task> copy = new ArrayList<>(allTasks);
+        TaskSorter.sortByDueDate(copy);
+        return copy;
+    }
+
+    // SORT BY DIFFICULTY
+    public List<Task> getTasksSortedByDifficulty() {
+        List<Task> copy = new ArrayList<>(allTasks);
+        TaskSorter.sortByDifficulty(copy);
+        return copy;
+    }
+
 }

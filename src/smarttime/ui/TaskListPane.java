@@ -2,6 +2,7 @@ package smarttime.ui;
 
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -36,6 +37,21 @@ public class TaskListPane extends VBox {
 
         Label header = new Label("Tasks");
         header.setStyle("-fx-font-weight: bold;");
+        // SORT DROPDOWN
+        ComboBox<String> sortBox = new ComboBox<>();
+        sortBox.getItems().addAll("Default", "Due date", "Difficulty");
+        sortBox.getSelectionModel().selectFirst();
+
+        sortBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if ("Due date".equals(newVal)) {
+                currentSortMode = SortMode.DUE_DATE;
+            } else if ("Difficulty".equals(newVal)) {
+                currentSortMode = SortMode.DIFFICULTY;
+            } else {
+                currentSortMode = SortMode.DEFAULT;
+            }
+            refresh();
+        });
 
         taskList = new ListView<>();
         VBox.setVgrow(taskList, Priority.ALWAYS);
@@ -94,6 +110,7 @@ public class TaskListPane extends VBox {
 
         getChildren().addAll(
                 header,
+                sortBox,
                 taskList,
                 addTaskButton,
                 markCompletedButton,
@@ -105,7 +122,18 @@ public class TaskListPane extends VBox {
     }
 
     public void refresh() {
-        taskList.getItems().setAll(taskService.getAllTasksSorted());
+        switch (currentSortMode) {
+            case DUE_DATE:
+                taskList.getItems().setAll(taskService.getTasksSortedByDueDate());
+                break;
+            case DIFFICULTY:
+                taskList.getItems().setAll(taskService.getTasksSortedByDifficulty());
+                break;
+            case DEFAULT:
+            default:
+                taskList.getItems().setAll(taskService.getAllTasks());
+                break;
+        }
     }
 
     private void handleMarkCompleted() {
@@ -140,4 +168,12 @@ public class TaskListPane extends VBox {
     public void setOnTasksChanged(Runnable r) {
         this.onTasksChanged = r;
     }
+    
+    private enum SortMode {
+        DEFAULT,
+        DUE_DATE,
+        DIFFICULTY
+    }
+
+    private SortMode currentSortMode = SortMode.DEFAULT;
 }

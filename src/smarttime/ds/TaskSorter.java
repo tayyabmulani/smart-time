@@ -5,25 +5,32 @@ import java.util.List;
 import smarttime.model.Task;
 
 /**
- * TaskSorter
  * Custom QuickSort implementation for Tasks.
+ * Implements the Sorting ADT (TaskSorterInterface).
  */
-public class TaskSorter {
+public class TaskSorter implements TaskSorterInterface {
 
-    /**
-     * Sorts the given list of tasks in-place using QuickSort.
-     *
-     * Order:
-     *   1. Earlier due date first
-     *   2. If same due date -> lower difficulty first
-     *   3. If same difficulty -> smaller estimated minutes first
-     *   4. Then alphabetical by title (case-insensitive)
-     */
-    public static void quickSortTasks(List<Task> tasks) {
+    @Override
+    public void sort(List<Task> tasks, Comparator<Task> comparator) {
         if (tasks == null || tasks.size() <= 1) return;
+        quickSort(tasks, 0, tasks.size() - 1, comparator);
+    }
 
-        Comparator<Task> cmp = taskComparator();
-        quickSort(tasks, 0, tasks.size() - 1, cmp);
+
+    public static void quickSortTasks(List<Task> tasks) {
+        new TaskSorter().sort(tasks, taskComparator());
+    }
+
+    public static void sortByDueDate(List<Task> tasks) {
+        Comparator<Task> cmp = Comparator.comparing(
+                Task::getDueDate, Comparator.nullsLast((d1, d2) -> d1.compareTo(d2))
+        );
+        new TaskSorter().sort(tasks, cmp);
+    }
+
+    public static void sortByDifficulty(List<Task> tasks) {
+        Comparator<Task> cmp = Comparator.comparingInt(Task::getDifficulty);
+        new TaskSorter().sort(tasks, cmp);
     }
 
     private static Comparator<Task> taskComparator() {
@@ -49,7 +56,7 @@ public class TaskSorter {
         for (int j = low; j < high; j++) {
             if (cmp.compare(list.get(j), pivot) <= 0) {
                 i++;
-                swap(list, i, j);  // custom swap
+                swap(list, i, j);
             }
         }
 
@@ -59,7 +66,6 @@ public class TaskSorter {
 
     private static <T> void swap(List<T> list, int i, int j) {
         if (i == j) return;
-
         T temp = list.get(i);
         list.set(i, list.get(j));
         list.set(j, temp);
