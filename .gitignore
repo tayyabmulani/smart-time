@@ -16,6 +16,7 @@ local.properties
 .classpath
 .project
 .DS_Store
+build.fxbuild
 
 # External tool builders
 .externalToolBuilders/
