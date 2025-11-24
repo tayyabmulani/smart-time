@@ -9,14 +9,16 @@ SmartTime is a lightweight JavaFX-based task management tool built for students 
    1. macOS Apple Silicon: javafx-sdk-25.x-osx-aarch64.zip
    2. macOS Intel: osx-x64
    3. Windows: win-x64
-4. Clone this project via Git
-5. Import this project in Eclipse 
-6. Right click on the project folder (smarttime) from the project explorer view.
-7. Go to Build Path -> Libraries -> Ensure JRE System Library is pointing to Java SE 25.
-8. Click on "Modulepath" option -> Add Library -> User Library -> User Libraries -> New -> Give a name (JavaFXLibraries)
-9. Select JavaFXLibraries -> Add External JARs
-10. Navigate to downloaded JavaFX SDK lib folder:/Users/<your-username>/javafx-sdk-25.0.1/lib
-11. Select all the javafx-*.jar files and click Open. -> Click Apply and Close
+4. Unzip it and remember the saved location
+5. Clone this project via Git
+6. Import this project in Eclipse
+7. On top right side, click on Help -> Eclipse Marketplace -> Install e(fx)clipse 3.8.0 -> Follow the instructions -> Restart Eclipse
+8. Right click on the project folder (smarttime) from the project explorer view and select "properties"
+9. Go to Build Path -> Libraries -> Ensure JRE System Library is pointing to Java SE 25.
+10. Click on "Modulepath" option -> Add Library -> User Library -> User Libraries -> New -> Give a name (JavaFXLibraries)
+11. Select JavaFXLibraries -> Add External JARs
+12. Navigate to downloaded JavaFX SDK lib folder:/Users/<your-username>/javafx-sdk-25.0.1/lib
+13. Select all the javafx-*.jar files and click Open. -> Click Apply and Close
 
 - To run the project:
 1. Right click the project folder (smarttime) from the project explorer view.
