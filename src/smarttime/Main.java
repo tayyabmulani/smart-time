@@ -26,7 +26,7 @@ public class Main extends Application {
         // 4) Pass TaskService into MainLayout
         MainLayout root = new MainLayout(taskService);
 
-        Scene scene = new Scene(root, 900, 550);
+        Scene scene = new Scene(root, 900, 750);
         stage.setTitle("SmartTime");
         stage.setScene(scene);
         stage.show();

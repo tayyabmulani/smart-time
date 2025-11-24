@@ -7,11 +7,14 @@ import java.util.List;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -22,14 +25,18 @@ import smarttime.service.TaskService;
 public class TaskFormPane extends VBox {
 
     private final TaskService taskService;
-    private final Runnable onDone; 
+    private final Runnable onDone;
 
     private final Label headerLabel;
     private final TextField titleField;
     private final TextField courseField;
-    private final TextField dueDateField;
-    private final TextField minutesField;
-    private final TextField difficultyField;
+
+    private final DatePicker dueDatePicker;
+    private final Slider minutesSlider;
+    private final Label minutesValueLabel;
+    private final Slider difficultySlider;
+    private final Label difficultyValueLabel;
+
     private final Label errorLabel;
 
     private final ListView<Task> prereqListView;
@@ -56,14 +63,59 @@ public class TaskFormPane extends VBox {
         courseField = new TextField();
         courseField.setPromptText("Course (e.g., INFO 6205)");
 
-        dueDateField = new TextField();
-        dueDateField.setPromptText("Due date (YYYY-MM-DD)");
+        // Due date as DatePicker
+        dueDatePicker = new DatePicker();
+        dueDatePicker.setPromptText("YYYY-MM-DD");
 
-        minutesField = new TextField();
-        minutesField.setPromptText("Estimated minutes (e.g., 60)");
+        // Estimated minutes slider
+        minutesSlider = new Slider(15, 120, 60);   // min, max, initial
 
-        difficultyField = new TextField();
-        difficultyField.setPromptText("Difficulty 1–5");
+        // visual behaviour
+        minutesSlider.setShowTickMarks(true);
+        minutesSlider.setShowTickLabels(false);    // <— hide crowded numbers
+        minutesSlider.setMajorTickUnit(15);
+        minutesSlider.setMinorTickCount(2);
+        minutesSlider.setBlockIncrement(5);
+        minutesSlider.setSnapToTicks(true);
+
+        // label on the right: "60 min"
+        minutesValueLabel = new Label("60 min");
+        minutesValueLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #555;");
+
+        // update text when user drags the slider
+        minutesSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            int rounded = (int) Math.round(newVal.doubleValue());
+            minutesValueLabel.setText(rounded + " min");
+        });
+
+        // lay them out nicely in one row
+        HBox minutesRow = new HBox(8, minutesSlider, minutesValueLabel);
+        minutesRow.setAlignment(Pos.CENTER_LEFT);
+        minutesRow.setFillHeight(false);
+        minutesRow.setPrefWidth(260);
+
+        // --- Difficulty slider 1–5 ---
+        difficultySlider = new Slider();
+        difficultySlider.setMin(1);
+        difficultySlider.setMax(5);
+        difficultySlider.setBlockIncrement(1);
+        difficultySlider.setMajorTickUnit(1);
+        difficultySlider.setMinorTickCount(0);
+        difficultySlider.setShowTickMarks(true);
+        difficultySlider.setShowTickLabels(true);
+        difficultySlider.setSnapToTicks(true);
+        difficultySlider.setValue(3); // default
+
+        difficultyValueLabel = new Label("3");
+        difficultyValueLabel.setStyle("-fx-font-size: 11px;");
+        difficultySlider.valueProperty().addListener((obs, oldV, newV) -> {
+            int val = (int) Math.round(newV.doubleValue());
+            difficultySlider.setValue(val);
+            difficultyValueLabel.setText(Integer.toString(val));
+        });
+
+        HBox difficultyRow = new HBox(8, difficultySlider, difficultyValueLabel);
+        difficultyRow.setAlignment(Pos.CENTER_LEFT);
 
         errorLabel = new Label();
         errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 11px;");
@@ -90,17 +142,17 @@ public class TaskFormPane extends VBox {
 
         // Layout
         getChildren().addAll(
-                headerLabel,
-                labeled("Title", titleField),
-                labeled("Course", courseField),
-                labeled("Due date", dueDateField),
-                labeled("Estimated minutes", minutesField),
-                labeled("Difficulty", difficultyField),
-                prereqLabel,
-                prereqListView,
-                errorLabel,
-                buttonRow
-        );
+        	    headerLabel,
+        	    labeled("Title", titleField, true),
+        	    labeled("Course", courseField, true),
+        	    labeled("Due date", dueDatePicker, true),
+        	    labeled("Estimated minutes", minutesRow, false),
+        	    labeled("Difficulty", difficultyRow, true),
+        	    prereqLabel,
+        	    prereqListView,
+        	    errorLabel,
+        	    buttonRow
+        	);
 
         VBox.setVgrow(this, Priority.ALWAYS);
 
@@ -113,13 +165,14 @@ public class TaskFormPane extends VBox {
         });
     }
 
-    private VBox labeled(String labelText, TextField field) {
+    // Generic "label + control" helper
+    private VBox labeled(String labelText, Node field) {
         Label label = new Label(labelText);
         label.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
         return new VBox(2, label, field);
     }
 
-    // Public APIs for Main Layout
+    // Public APIs for MainLayout
 
     /** Prepare the form for adding a brand new task. */
     public void startAddMode() {
@@ -142,18 +195,17 @@ public class TaskFormPane extends VBox {
         headerLabel.setText("Edit Task");
         saveButton.setText("Save Changes");
 
-        // populate fields from existing task
         titleField.setText(task.getTitle());
         courseField.setText(task.getCourse());
-        dueDateField.setText(task.getDueDate().toString());
-        minutesField.setText(Integer.toString(task.getEstimatedMinutes()));
-        difficultyField.setText(Integer.toString(task.getDifficulty()));
+        dueDatePicker.setValue(task.getDueDate());
+        minutesSlider.setValue(task.getEstimatedMinutes());
+        minutesValueLabel.setText(task.getEstimatedMinutes() + " min");
+        difficultySlider.setValue(task.getDifficulty());
+        difficultyValueLabel.setText(Integer.toString(task.getDifficulty()));
 
         errorLabel.setText("");
 
         refreshPrerequisites();
-
-        // To pre-select prerequisites here via TaskService
         prereqListView.getSelectionModel().clearSelection();
     }
 
@@ -168,42 +220,37 @@ public class TaskFormPane extends VBox {
 
         String title = titleField.getText().trim();
         String course = courseField.getText().trim();
-        String dueDateText = dueDateField.getText().trim();
-        String minutesText = minutesField.getText().trim();
-        String difficultyText = difficultyField.getText().trim();
+        LocalDate dueDate = dueDatePicker.getValue();
 
         if (title.isEmpty()) {
             errorLabel.setText("Title is required.");
             return;
         }
 
-        LocalDate dueDate;
-        try {
-            dueDate = LocalDate.parse(dueDateText);
-        } catch (DateTimeParseException ex) {
-            errorLabel.setText("Invalid date. Use format YYYY-MM-DD.");
+        if (dueDate == null) {
+            errorLabel.setText("Please select a due date.");
             return;
         }
 
-        int minutes;
-        int difficulty;
-        try {
-            minutes = Integer.parseInt(minutesText);
-            difficulty = Integer.parseInt(difficultyText);
-        } catch (NumberFormatException ex) {
-            errorLabel.setText("Minutes and difficulty must be numbers.");
-            return;
-        }
+        int minutes = (int) Math.round(minutesSlider.getValue());
+        int difficulty = (int) Math.round(difficultySlider.getValue());
 
         if (difficulty < 1 || difficulty > 5) {
             errorLabel.setText("Difficulty must be between 1 and 5.");
             return;
         }
 
-        if (editingTask == null) {
-            // Create a new Task
-            int id = taskService.getAllTasks().size() + 1; // simple ID
+        try {
+            // The LocalDate from DatePicker is already parsed, so no DateTimeParseException
+            // This try block is mostly here to mirror your previous validation style.
+            dueDate.toString();
+        } catch (DateTimeParseException ex) {
+            errorLabel.setText("Invalid date.");
+            return;
+        }
 
+        if (editingTask == null) {
+            int id = taskService.getAllTasks().size() + 1; // simple ID
             Task task = new Task(id, title, course, dueDate, minutes, difficulty);
             taskService.addTask(task);
 
@@ -212,23 +259,31 @@ public class TaskFormPane extends VBox {
                 taskService.addDependency(prereq, task);
             }
         } else {
-        	taskService.updateTask(editingTask, title, course, dueDate, minutes, difficulty);
+            taskService.updateTask(editingTask, title, course, dueDate, minutes, difficulty);
         }
 
         clearForm();
 
         if (onDone != null) {
-            onDone.run();  // MainLayout will refresh list + switch view
+            onDone.run(); // MainLayout will refresh list + switch view
         }
     }
 
     private void clearForm() {
         titleField.clear();
         courseField.clear();
-        dueDateField.clear();
-        minutesField.clear();
-        difficultyField.clear();
+        dueDatePicker.setValue(null);
+        minutesSlider.setValue(60);
+        minutesValueLabel.setText("60 min");
+        difficultySlider.setValue(3);
+        difficultyValueLabel.setText("3");
         errorLabel.setText("");
         prereqListView.getSelectionModel().clearSelection();
+    }
+    private VBox labeled(String labelText, Node field, boolean required) {
+        String text = required ? labelText + " *" : labelText;
+        Label label = new Label(text);
+        label.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
+        return new VBox(2, label, field);
     }
 }
