@@ -27,11 +27,26 @@ public class TaskGraph implements GraphInterface<Task> {
 
     @Override
     public void addEdge(Task from, Task to) {
-        // from = prerequisite, to = dependent
         addVertex(from);
         addVertex(to);
+
+        // prevent self dependency A → A
+        if (from == to) {
+            throw new IllegalArgumentException("A task cannot depend on itself.");
+        }
+
+        // temporarily add edge
         adj.get(from).add(to);
         prereqMap.get(to).add(from);
+
+        // check if cycle is formed
+        if (hasCycle()) {
+            // rollback
+            adj.get(from).remove(to);
+            prereqMap.get(to).remove(from);
+
+            throw new IllegalArgumentException("Adding this dependency creates a cycle.");
+        }
     }
 
     /**
